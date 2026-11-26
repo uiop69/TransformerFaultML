@@ -1510,7 +1510,11 @@ class TransformerFaultApp(QWidget):
         except Exception as error:
             QMessageBox.critical(self, "Comparison Error", str(error))
 
-    # ======================================================\n    # LOAD CSV / EXCEL\n    # ======================================================\n\n    def load_file(self):
+    # ======================================================
+    # LOAD CSV / EXCEL
+    # ======================================================
+
+    def load_file(self):
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
