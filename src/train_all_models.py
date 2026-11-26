@@ -11,6 +11,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder, StandardScaler
 from sklearn.svm import SVC
 
@@ -24,6 +26,9 @@ X = df[FEATURES].astype(float)
 if (X < 0).any().any():
     raise ValueError("Gas concentrations must be non-negative.")
 y = LabelEncoder().fit_transform(df["fault_type"])
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=42, stratify=y
+)
 
 log_transform = FunctionTransformer(np.log1p, validate=False)
 model_definitions = {
@@ -58,10 +63,19 @@ encoder.fit(df["fault_type"])
 joblib.dump(encoder, MODEL_DIR / "label_encoder.joblib")
 
 for filename, model in model_definitions.items():
-    print(f"Training {filename} ...")
+    print(f"\nEvaluating {filename} on the same stratified 20% hold-out set ...")
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+    print(f"Accuracy: {accuracy_score(y_test, predictions):.4f}")
+    print(f"Macro F1: {f1_score(y_test, predictions, average='macro'):.4f}")
+    print(classification_report(
+        y_test, predictions, target_names=encoder.classes_, zero_division=0
+    ))
+
+    # Refit on the complete dataset for deployment after evaluation.
     model.fit(X, y)
     joblib.dump(model, MODEL_DIR / filename)
-    print(f"Saved: {MODEL_DIR / filename}")
+    print(f"Saved full-data model: {MODEL_DIR / filename}")
 
 # Keep the original filename so older scripts/build configurations continue to work.
 joblib.dump(
