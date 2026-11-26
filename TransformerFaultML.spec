@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('models/transformer_fault_model.joblib', 'models'), ('models/label_encoder.joblib', 'models')]
+datas = [('models/transformer_fault_model.joblib', 'models'), ('models/random_forest_model.joblib', 'models'), ('models/svm_model.joblib', 'models'), ('models/knn_model.joblib', 'models'), ('models/label_encoder.joblib', 'models')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('sklearn')
