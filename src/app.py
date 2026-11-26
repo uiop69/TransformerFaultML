@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QDialog,
+    QComboBox,
 )
 
 from PySide6.QtCore import Qt
@@ -49,7 +50,7 @@ from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from predict import predict_fault
+from predict import predict_fault, compare_models, MODEL_NAMES
 
 
 
@@ -640,7 +641,6 @@ class TransformerFaultApp(QWidget):
         )
 
         self.inputs = {}
-
         self.create_ui()
 
 
@@ -756,6 +756,12 @@ class TransformerFaultApp(QWidget):
             story.append(
                 Paragraph(
                     f"<b>Analysis Date:</b> {analysis_time}",
+                    styles["Normal"]
+                )
+            )
+            story.append(
+                Paragraph(
+                    f"<b>Model Used:</b> {MODEL_NAMES.get(self.last_model, self.last_model)}",
                     styles["Normal"]
                 )
             )
@@ -1150,6 +1156,13 @@ class TransformerFaultApp(QWidget):
 
         input_layout.addWidget(input_title)
 
+        model_label = QLabel("Select Prediction Model")
+        self.model_combo = QComboBox()
+        for model_key, model_title in MODEL_NAMES.items():
+            self.model_combo.addItem(model_title, model_key)
+        input_layout.addWidget(model_label)
+        input_layout.addWidget(self.model_combo)
+
         grid = QGridLayout()
 
         for row, gas in enumerate(GAS_COLUMNS):
@@ -1201,6 +1214,11 @@ class TransformerFaultApp(QWidget):
         input_layout.addWidget(
             analyze_button
         )
+
+        compare_button = QPushButton("COMPARE ALL MODELS")
+        compare_button.setMinimumHeight(45)
+        compare_button.clicked.connect(self.compare_all_models)
+        input_layout.addWidget(compare_button)
 
         # ==================================================
         # LOAD FILE BUTTON
@@ -1400,13 +1418,16 @@ class TransformerFaultApp(QWidget):
 
                 values[key] = value
 
+            selected_model = self.model_combo.currentData()
             fault, probabilities = predict_fault(
                 H2=values["H2"],
                 CH4=values["CH4"],
                 C2H6=values["C2H6"],
                 C2H4=values["C2H4"],
                 C2H2=values["C2H2"],
+                model_name=selected_model,
             )
+            self.last_model = selected_model
 
             display_fault = FAULT_NAMES.get(
                 fault,
@@ -1451,10 +1472,45 @@ class TransformerFaultApp(QWidget):
             )
 
     # ======================================================
-    # LOAD CSV / EXCEL
+    # COMPARE ALL THREE MODELS
     # ======================================================
 
-    def load_file(self):
+    def compare_all_models(self):
+        values = {}
+        try:
+            for key, field in self.inputs.items():
+                text = field.text().strip()
+                if not text:
+                    raise ValueError(f"Please enter a value for {key}.")
+                value = float(text)
+                if value < 0:
+                    raise ValueError(f"{key} cannot be negative.")
+                values[key] = value
+
+            comparisons = compare_models(
+                H2=values["H2"],
+                CH4=values["CH4"],
+                C2H6=values["C2H6"],
+                C2H4=values["C2H4"],
+                C2H2=values["C2H2"],
+            )
+            lines = ["MODEL COMPARISON", ""]
+            for model_key, (fault, probabilities) in comparisons.items():
+                confidence = probabilities[fault] * 100
+                lines.append(
+                    f"{MODEL_NAMES[model_key]}: "
+                    f"{FAULT_NAMES.get(fault, fault)} "
+                    f"({confidence:.2f}%)"
+                )
+            QMessageBox.information(
+                self, "Compare All Models", "\\n".join(lines)
+            )
+        except ValueError as error:
+            QMessageBox.warning(self, "Invalid Input", str(error))
+        except Exception as error:
+            QMessageBox.critical(self, "Comparison Error", str(error))
+
+    # ======================================================\n    # LOAD CSV / EXCEL\n    # ======================================================\n\n    def load_file(self):
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -1535,6 +1591,7 @@ class TransformerFaultApp(QWidget):
                     C2H6=values["C2H6"],
                     C2H4=values["C2H4"],
                     C2H2=values["C2H2"],
+                    model_name=self.model_combo.currentData(),
                 )
 
                 results.append(
