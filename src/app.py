@@ -1503,7 +1503,7 @@ class TransformerFaultApp(QWidget):
                     f"({confidence:.2f}%)"
                 )
             QMessageBox.information(
-                self, "Compare All Models", "\\n".join(lines)
+                self, "Compare All Models", "\n".join(lines)
             )
         except ValueError as error:
             QMessageBox.warning(self, "Invalid Input", str(error))
